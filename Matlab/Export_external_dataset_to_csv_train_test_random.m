@@ -1,10 +1,10 @@
 
 chunks = 1;
 version = 'v5';
-numReps = 5;
+numReps = 10;
 trainPercent = 0.8;
 
-labelRepIncrement = 0; %Top avoid overwrite previous files. Default= 0
+labelRepIncrement = 4; %Top avoid overwrite previous files. Default= 0
 
 pdpSizes = [3,7,15,30];
 for ii=1:1:numReps

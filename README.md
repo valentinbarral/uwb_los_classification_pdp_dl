@@ -19,9 +19,19 @@ To generate measurement sets be used later in Tensorflow, it is necessary to pre
 
 ## Classification
 
-To run the simulation, the "main.py" file must be executed (it is necessary to have previously installed the [Tensorflow](https://www.tensorflow.org/install) libraries).
+To run the simulation, the "main.py" file must be executed. 
+It is necessary to have previously installed the next python libraries:
 
-The results are stored in "./Results_v5". Different figures can be obtained using the scripts "./plot_results_multi_pdp.py" and "plot_results.py". 
+- tensorflow
+- tensorflow_addons
+- pydotplus
+- pandas
+- pydot
+- matplotlib
+
+They can be installed used ```pip```.
+
+After executing the "main.py" script, the results will be stored in "./Results_v5". Different figures can be obtained using the scripts "./plot_results_multi_pdp.py" and "plot_results.py". 
 
 ### References
 

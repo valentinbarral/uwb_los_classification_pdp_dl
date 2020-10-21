@@ -34,6 +34,7 @@ import time
 from tensorflow.keras import backend as K
 import pydotplus
 import collections
+import matplotlib.pyplot as plt
 
 def recall_m(y_true, y_pred):
     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
@@ -94,8 +95,8 @@ print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('
 # DATASET_SIZE=41996
 batch_size = 64
 epochs = 20
-numReps =10
-cir_energy_mode = 0  # 0:raw, 1:normalized
+numReps = 5
+cir_energy_mode = 1  # 0:raw, 1:normalized
 version = 'v5'
 
 # Variant: 
@@ -105,7 +106,7 @@ version = 'v5'
 # all_single_pdp: test all modes but only one pdp size. The pdp size is the first of the array pdpLFactors
 # pdps: test only the modes that use pdp, with all the pdp sizes
 # all_only_extra_single_pdp: test only modes with extra features and only one PDP size.
-variant = 'all'
+variant = 'all_single_pdp'
 
 pdpLFactors = [5,10,20,40]
 modesToTest = [0,1,2,3,4,5] #0:CIR, 1:CIR152, 2:PDP, 3:CIR + EXTRA, 4:CIR152 + EXTRA, 5:PDP + EXTRA
@@ -164,6 +165,8 @@ for mode in modesToTest: #0:CIR, 1:CIR152, 2:PDP, 3:CIR + EXTRA, 4:CIR152 + EXTR
         resultsPrecision = []
         resultsRecall = []
         
+        resultsAccuracyByEpoch = []
+        resultsValidationAccuracyByEpoch = []
 
         if mode==0:
             #ONLY CIR
@@ -265,7 +268,7 @@ for mode in modesToTest: #0:CIR, 1:CIR152, 2:PDP, 3:CIR + EXTRA, 4:CIR152 + EXTR
             #show_batch(test_dataset)
             
            # train_dataset, test_dataset= split_dataset(full_dataset_only_cir,0.2)
-            #train_dataset, val_dataset = split_dataset(train_dataset,0.1)
+            train_dataset, val_dataset = split_dataset(train_dataset,0.3)
 
             def select_features(cols):
                 def select_cols(features,label):
@@ -298,19 +301,19 @@ for mode in modesToTest: #0:CIR, 1:CIR152, 2:PDP, 3:CIR + EXTRA, 4:CIR152 + EXTR
 
             # VALIDATION DATASET
 
-            # val_dataset_cir = val_dataset.map(select_features(SELECT_COLUMNS_CIR))
-            # if (not train_only_with_cir):
-            #     val_dataset_no_cir = val_dataset.map(select_features(SELECT_COLUMNS_NO_CIR))
+            val_dataset_cir = val_dataset.map(select_features(SELECT_COLUMNS_CIR))
+            if (not train_only_with_cir):
+                val_dataset_no_cir = val_dataset.map(select_features(SELECT_COLUMNS_NO_CIR))
 
-            # packed_val_dataset_cir = val_dataset_cir.map(pack)
-            # if (not train_only_with_cir):
-            #     packed_val_dataset_no_cir = val_dataset_no_cir.map(pack)
-            #     val_dataset_zip = tf.data.Dataset.zip((packed_val_dataset_cir, packed_val_dataset_no_cir))
-            #     val_dataset_all_X = val_dataset_zip.map(lambda x1, x2: {'input_1': x1[0], 'input_2': x2[0]})
-            #     val_dataset_all_Y = val_dataset_zip.map(lambda x1, x2: x1[1])
-            #     val_dataset_all = tf.data.Dataset.zip((val_dataset_all_X, val_dataset_all_Y))
-            # else:
-            #     val_dataset_all = packed_val_dataset_cir
+            packed_val_dataset_cir = val_dataset_cir.map(pack)
+            if (not train_only_with_cir):
+                packed_val_dataset_no_cir = val_dataset_no_cir.map(pack)
+                val_dataset_zip = tf.data.Dataset.zip((packed_val_dataset_cir, packed_val_dataset_no_cir))
+                val_dataset_all_X = val_dataset_zip.map(lambda x1, x2: {'input_1': x1[0], 'input_2': x2[0]})
+                val_dataset_all_Y = val_dataset_zip.map(lambda x1, x2: x1[1])
+                val_dataset_all = tf.data.Dataset.zip((val_dataset_all_X, val_dataset_all_Y))
+            else:
+                val_dataset_all = packed_val_dataset_cir
 
             # TEST DATASET
             test_dataset_cir = test_dataset.map(select_features(SELECT_COLUMNS_CIR))
@@ -391,10 +394,26 @@ for mode in modesToTest: #0:CIR, 1:CIR152, 2:PDP, 3:CIR + EXTRA, 4:CIR152 + EXTR
             history = model.fit(
                 train_dataset_all,
                 epochs=epochs,
-                # validation_data= val_dataset_all,
+                validation_data= val_dataset_all,
                 shuffle=False,
                 verbose=1
             )
+            print(history.history.keys())
+
+            resultsAccuracyByEpoch.append(history.history['accuracy'])
+            resultsValidationAccuracyByEpoch.append(history.history['val_accuracy'])
+
+        #     fig_accuracy_by_epoch = plt.figure()
+        #     plt.plot(history.history['accuracy'])
+        #     plt.plot(history.history['val_accuracy'])
+        #     plt.title('model accuracy')
+        #     plt.ylabel('accuracy')
+        #     plt.xlabel('epoch')
+        #     plt.legend(['train', 'validation'], loc='upper left')
+        #     plt.savefig('Results_'+version+'/fig_accuracy_by_epoch_'  + cir_energy_mode_label +'.pdf', bbox_inches = 'tight',
+        # pad_inches = 0.02)
+        #     plt.show()
+
             executionTime = time.time() - start_time
             print(executionTime)
             resultsExecutioinTime.append(executionTime)
@@ -423,6 +442,8 @@ for mode in modesToTest: #0:CIR, 1:CIR152, 2:PDP, 3:CIR + EXTRA, 4:CIR152 + EXTR
         np.save('Results_'+version+'/f1_'+str(mode) +pdpLabel+cir_energy_mode_label, resultsF1)
         np.save('Results_'+version+'/precision_'+str(mode) +pdpLabel+cir_energy_mode_label, resultsPrecision)
         np.save('Results_'+version+'/recall_'+str(mode) + pdpLabel+cir_energy_mode_label, resultsRecall)
+        np.save('Results_'+version+'/accuracy_by_epoch_'+str(mode) +pdpLabel+cir_energy_mode_label, resultsAccuracyByEpoch)
+        np.save('Results_'+version+'/validation_accuracy_by_epoch_'+str(mode) + pdpLabel+cir_energy_mode_label, resultsValidationAccuracyByEpoch  )
 
     # model.save('TrainedModels/losnlos_'+str(mode)) 
     #show_batch(raw_train_data)
